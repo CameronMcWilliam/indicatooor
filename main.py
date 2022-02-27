@@ -1,33 +1,53 @@
+from trading.executor import Executor
 import getpass
 import os.path
 from colorama import Fore, Back, Style, init
 from utils.api import Client
+from trading.backtest import Backtester
+import inquirer
 
 def main():
     
     # initilaise colorama
     init()
     
-    # user input for live or backtest
-    valid = False
-    while not valid:
-        mode = input("Live or Backtest: ")
-        if mode.lower() == "live":
-            print('You selected: ' + Fore.GREEN + mode)
-            _live()
-            valid = True
-        elif mode.lower() == "backtest":
-            print('You selected: ' + Fore.GREEN + mode)
-            _backtest()
-            valid = True
-        else:
-            print("Invalid input")
+    questions = [
+          inquirer.List('mode',
+                        message="Mode selection",
+                        choices=['Live', 'Backtest'],
+                    ),
+        ]
+    answer = inquirer.prompt(questions)
+    mode = answer['mode']
+    if mode == 'Live':
+        print('You selected: ' + Fore.GREEN + mode)
+        _live()
+    else:
+        print('You selected: ' + Fore.GREEN + mode)
+        _backtest()
 
 def _live():
-    print(Fore.RED + "NOT READY")
-    return
-    api_key = input("Enter your ByBit API Key: ")
-    api_secret = getpass.getpass(prompt='Enter your ByBit API Secret: ', stream=None)
+    if not os.path.isfile('.secrets.txt'):
+        bb_api_key = input(Fore.WHITE + "Enter your ByBit API Key: ")   
+        bb_api_secret = getpass.getpass(prompt='Enter your ByBit API Secret: ', stream=None)
+        file_name = '.secrets.txt'
+        f = open(file_name, 'a+')
+        f.write('BB_Api=\''+bb_api_key+'\'')
+        f.write('BB_Secret=\''+bb_api_secret+'\'')
+        f.close()
+        print(Fore.GREEN + 'Saved API Key')
+    else:
+        myvars = _read_keys()
+        bb_api_key = myvars['BB_Api']
+        bb_api_secret = myvars['BB_Secret']
+    print(Fore.GREEN + 'Got API Key!' + Fore.WHITE)
+    myvars = _read_keys()
+    api_key = myvars['AV_Api']
+    bb_api_key = bb_api_key.rstrip("\n")
+    bb_api_secret = bb_api_secret.rstrip("\n")
+    client = Client(api_key, bb_api_key, bb_api_secret)
+    executor = Executor(client)
+    
 
 def _backtest():
     print(Fore.YELLOW + "WIP")
@@ -42,9 +62,10 @@ def _backtest():
         myvars = _read_keys()
         api_key = myvars['AV_Api']
         print(Fore.GREEN + 'Got API Key!')
-    client = Client(api_key)
+    client = Client(api_key, "stinky")
     print(Fore.WHITE + "Backtesting now...")
-    print(client.intraday_query('BTC', 'USD', '5min', 'full'))
+    back_trader = Backtester(client)
+    
 
 def _read_keys():
     myvars = {}
